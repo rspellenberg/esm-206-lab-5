@@ -1,0 +1,181 @@
+---
+title: "Lab 5 key"
+author: "C.L. Jerde"
+date: "2022-10-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr) # a package that makes publishable ready figures from ggplot2
+library(effsize) # a package to estimate effect sizes
+```
+
+# Confidence intervals, figures, t-tests, and effect size
+
+Today's lab will focus on 1. plotting data for communicating data distributions and 2. performing statistical analysis with interpretation of results.
+
+Let us start with some data. There are three subspecies of bighorn sheep. Here we will look at the horn length of two sub-species in California:
+
+```{r}
+# These are the horn lengths for two subspecies of bighorns (inches)
+desert_bighorns <- c(32, 44, 18, 26, 50, 33, 42, 20)
+sierra_bighorns <- c(28, 31, 40, 42, 26, 29, 31)
+
+# here is an example of doing a transformation on a vector
+desert_bighorns_cm <- 2.54*desert_bighorns # 2.54 multipier converts inches to cm
+sierra_bighorns_cm <- 2.54*sierra_bighorns
+```
+
+Let us use one of the visual inspection tool we have learned, the qqplot.
+
+```{r}
+qqplot_dbh <- ggplot( data.frame(desert_bighorns_cm), aes(sample = desert_bighorns_cm)) +  # note not x but sample is used and we have to put the data into a data frame!
+  geom_qq() + labs(title="Desert Bighorn Sheep") + theme_bw()
+qqplot_dbh
+
+
+qqplot_sbh <- ggplot( data.frame(sierra_bighorns_cm), aes(sample = sierra_bighorns_cm)) +  # note not x but sample is used and we have to put the data into a data frame!
+  geom_qq() + labs(title="Sierra Bighorn Sheep") + theme_bw()
+qqplot_sbh
+```
+
+So this is not very linear, but there are not many data points. Discrepancies from the theoretical distribution is expected. qqplots may not be the best choice for assessing normality for this data. However, irrespective of the underlying distribution, we know from the CLT that we can still have good estimates of the standard error of the mean and the confidence intervals around the mean.
+
+### Part 1: Make a confidence interval for the mean.
+
+We can start by looking at the summary statistics of data
+
+```{r}
+summary(desert_bighorns_cm)
+summary(sierra_bighorns_cm)
+```
+
+The means look similar. One approach we could consider is looking at the confidence intervals for each group. We can do this by using the t-test statistical command to give us the CI
+
+```{r}
+# Confidence Interval (CI)
+# By default, the t.test command gives a 95% CI
+t.test(desert_bighorns_cm) # note this give a "one sample t test" with a null hypothesis of mu=0
+```
+
+If you would like to adjust the CI level, then you can specify it.
+
+```{r}
+t.test(desert_bighorns_cm, conf.level = 0.99 ) # note this give a "one sample t test" with a null hypothesis of mu=0
+```
+
+Could we use confidence intervals to infer a difference in the means of the two subspecies? Using the '\$conf.int' will allow for extraction of just the CI information.
+
+```{r}
+d_bh_95CI <- t.test(desert_bighorns_cm)$conf.int
+s_bh_95CI <- t.test(sierra_bighorns_cm)$conf.int
+
+d_bh_95CI
+s_bh_95CI
+```
+
+*What would you conclude by inspection of the confidence intervals?*
+
+### Part 2. t-tests.
+
+A *one sample t-test* can be useful if you collected some data and want to compare to a specific value. Let's say you are reading an old paper that reports the mean of desert bighorns in your study area with a mean length of 123 cm. Unfortunately the paper does not report any measure of variability, nor provide the raw data. We can compare the data we have to the point value reported in the paper.
+
+```{r}
+d_bh_one_sample_t <- t.test(desert_bighorns_cm, mu=123)
+d_bh_one_sample_t
+```
+
+*What would you conclude?*
+
+A *two sample t-test* can compare the means of two groups. Maybe we want to know if there is a statistical difference between desert and Sierra bighorns. This uses the Welch two sample t-test which does not require the varinces of each group to be the same. Classically the t-test is conducted with the Student's t-test which has the assumption of equal variances. Welch is more robust. See information here: <https://www.datanovia.com/en/lessons/types-of-t-test/unpaired-t-test/welch-t-test/> This link also has some very useful plotting information for visualizing t-tests.
+
+```{r}
+bighorn_ttest <-t.test(x = desert_bighorns_cm, y = sierra_bighorns_cm)
+bighorn_ttest
+```
+
+### Part 3.The statistics are good, but how can we show this graphcially?
+
+First, let us make some tidy data.
+
+```{r}
+#makes a desert bighorn data frame
+dbh<-data.frame(horn_length_cm=desert_bighorns_cm)
+dbh$sub_species <-"desert"
+
+#makes a sierra bighhorn data frame
+sbh<-data.frame(horn_length_cm=sierra_bighorns_cm)
+sbh$sub_species <-"sierra"
+
+#rbind makes a new data frame with both data sets. It must have the same variable names.
+bh_cm<-rbind(dbh,sbh) 
+
+```
+
+Now that we have tidy data, let's make a nice plot
+
+Here is some modified code that makes a pretty graph. It uses a package called 'ggpubr'.
+
+Code in the next chunk is modified from: <https://www.datanovia.com/en/lessons/types-of-t-test/unpaired-t-test/welch-t-test/>
+
+You are not responsible for knowing the ggpubr package, but you should be looking at other ways to do graphics.
+
+```{r}
+bh_boxplot <- ggboxplot(bh_cm, x = "sub_species", y = "horn_length_cm", ylab = "Horn Length (cm)", xlab = "Bighorn subspecies", add = "jitter")
+bh_boxplot
+
+```
+
+### Part 4. Effect size
+
+The use of effect size is growing in popularity. For an excellent discussion of the use of effect size and some criticism of the p-value, consider the following reading:
+
+Sullivan, G. M., & Feinn, R. (2012). Using effect size---or why the P value is not enough. Journal of graduate medical education, 4(3), 279-282. [here](https://www.researchgate.net/profile/Fataneh-Dabaghian-2/post/How_to_calculate_the_effect_size_for_clinical_trial_sample_size_calculation/attachment/5cee5102cfe4a7968da4e998/AS%3A763827931058178%401559122178581/download/effect+size.pdf)
+
+What is the effect size of bighorn horn length?
+
+```{r}
+bhs_cohen_d<-cohen.d(desert_bighorns_cm,sierra_bighorns_cm)
+bhs_cohen_d
+```
+
+Cohen's suggested inference: <0.2 little or no effect; 0.2 to 0.8, moderate effect; >0.8 strong effect.
+
+Since the bighorn sheep effect size is 0.074, there is little or no effect. 
+
+However, let us consider a hypothetical situation where the desert bighorn sheep horn length was 20 cm longer  
+
+```{r}
+desert_bighorns_cm_mod <- desert_bighorns_cm + 20
+desert_bighorns_cm
+
+
+bhs_cohen_d_mod<-cohen.d(desert_bighorns_cm_mod,sierra_bighorns_cm)
+bhs_cohen_d_mod
+
+```
+
+How would you interpret this result?  What does the confidence interval tell you?  How could you improve the inference for the t-tests and the effect size?
+
+```{r}
+#hint
+length(desert_bighorns_cm)
+length(sierra_bighorns_cm)
+
+```
+
+### Bonus: Big data with t-tests and effect size
+
+We are moving into an era of big data.  This means sensors can collect lots and lots of data.  Consider this hypothetical:  One sensor measures 10,000,000 observations from a normal distribution with mean 5 and standard deviation 2.  The other sensor measures 10,000,000 observation with a nearly identical mean of 5.01 and standard deviation of 1.9.
+
+```{r}
+set.seed(1)
+sensor_1<-rnorm(10000000, 5.01, 1.9)
+sensor_2<-rnorm(10000000, 5, 2)
+
+t.test(sensor_1, sensor_2)
+cohen.d(sensor_1, sensor_2)
+```
+Why is the p-value so small and Cohen's d negligible?
