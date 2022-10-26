@@ -1,0 +1,141 @@
+---
+title: "lab5"
+author: "R. Spellenberg"
+date: "2022-10-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(effsize)
+library(ggpubr)
+
+#ggpubr makes publishing ready graphics and effsize allows us to calculate effect size
+```
+
+# Confidence intervals (CI), plotting, effect size (and some big data considerations)
+
+Data
+```{r}
+# data is in inches
+desert_bighorn <- c(32, 44, 18, 26, 50, 33, 42, 20)
+sierra_bighorn <- c(28, 31, 40, 42, 26, 29, 31)
+
+#easy way to transform vector
+desert_bighorn_cm <- desert_bighorn * 2.54
+sierra_bighorn_cm <- sierra_bighorn * 2.54
+```
+
+qqplot (to visually inspect data)
+```{r}
+# data frame tells R that our vectors are data
+# qqplot is _____
+qqplot_dbh <- ggplot(data.frame(desert_bighorn_cm), aes(sample = desert_bighorn_cm)) +
+  geom_qq() +
+  labs(title = "Desert Bighorn Sheep") +
+  theme_bw()
+
+qqplot_dbh
+
+qqplot_sbh <- ggplot(data.frame(sierra_bighorn_cm), aes(sample = sierra_bighorn_cm)) +
+  geom_qq() +
+  labs(title = "Sierra Bighorn Sheep") +
+  theme_bw()
+
+qqplot_sbh
+```
+
+Summary Stats
+```{r}
+summary(desert_bighorn_cm)
+summary(sierra_bighorn_cm)
+```
+
+Build Confidence Intervals
+```{r}
+t.test(desert_bighorn_cm)
+# assumes one sample t-test when you just put in a dataset - it compares to 0 which is not helpful, but it gives us confidence interval. Defaults at 95% confidence interval
+
+#changing to 99% confidence interval. We would expect the range to be larger because more data would fall into it at 99% confidence
+t.test(desert_bighorn_cm, conf.level = 0.99)
+```
+
+```{r}
+t.test(sierra_bighorn_cm, conf.level = 0.90)
+t.test(desert_bighorn_cm, conf.level = 0.90)
+
+#would use a one sample t test to compare to historical mean and see if it consistent or inconsistent with that provided mean
+```
+
+One-sample t-test
+```{r}
+dbh_one_sample_ttest <- t.test(desert_bighorn_cm, mu = 123)
+dbh_one_sample_ttest 
+
+#reject the null that mean is equal to 123 
+#null hypothesis: mu = 123,alternative hypothesis: mu does not equal 123 
+```
+
+Two Sample t-test
+```{r}
+bighorn_ttest <- t.test(desert_bighorn_cm, sierra_bighorn_cm)
+bighorn_ttest
+
+#same command, but add two data sets
+#R will default to Welch's Two Sample
+
+#fail to reject the null hypothesis. The populations are not providing evidence that they are differrent from one another. Our power to detect any difference isn't that high given our small sample size
+
+```
+
+Using ggpubr to plot data
+
+data frame creation
+```{r}
+#data wrangling: make vector into dataset to be able to plot. Making a new variable called "horn_length_cm". I want a new variable for subspecies with value of desert
+
+dbh <- data.frame(horn_length_cm = desert_bighorn_cm)
+dbh$subspecies <- "desert"
+
+sbh <- data.frame(horn_length_cm = sierra_bighorn_cm)
+sbh$subspecies <- "sierra"
+
+#stacking these data in same data set - rbind for rows, cbind for columns
+bh_cm <- rbind(dbh, sbh)
+```
+
+Use the data frame to make a box plot
+```{r}
+bh_boxplot <- ggboxplot(bh_cm, x = "subspecies", y = "horn_length_cm", ylab = "Horn Length (cm)", xlab = "Bighorn Subspecies", add = "jitter")
+bh_boxplot
+```
+
+Cohen's d
+```{r}
+bhs_cohen_d <- cohen.d(desert_bighorn_cm, sierra_bighorn_cm)
+bhs_cohen_d
+
+#lots of uncertainty because there is large effect size (>0.8 confidence interval) on both sides of the mean
+```
+
+Hypothetical example
+```{r}
+desert_bighorn_cm_mod <- desert_bighorn_cm + 20
+
+bhs_cohen_d_mod <- cohen.d(desert_bighorn_cm_mod, sierra_bighorn_cm)
+bhs_cohen_d_mod
+```
+
+Big Data
+```{r}
+#set.seed(1)
+sensor_1 <- rnorm(10000000, 5, 2)
+sensor_2 <- rnorm(10000000, 5, 2)
+
+t.test(sensor_1, sensor_2)
+cohen.d(sensor_1, sensor_2)
+
+#what is the difference between the two means. Negligible d tells us that the difference is small 
+```
+
